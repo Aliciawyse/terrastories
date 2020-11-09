@@ -18,6 +18,7 @@ class Speaker < ApplicationRecord
 
   has_many :speaker_stories
   has_many :stories, through: :speaker_stories
+  belongs_to :community
   belongs_to :birthplace, class_name: "Place",  optional: true
   has_one_attached :photo
 
@@ -30,10 +31,10 @@ class Speaker < ApplicationRecord
     end
   end
 
-  def self.import_csv(filename)
+  def self.import_csv(filename, community)
     CSV.parse(filename, headers: true) do |row|
       speaker = Speaker.find_or_create_by(name: row[0])
-      speaker.birthplace = get_birthplace(row[2])
+      speaker.birthplace = get_birthplace(row[2], community)
       # Assumes birth date field is always just a year
       speaker.birthdate = row[1].nil? || row[1].downcase == 'unknown' ? nil : Date.strptime(row[1], "%Y")
       pathname = Rails.root.join(MEDIA_PATH, row[3])
@@ -41,14 +42,15 @@ class Speaker < ApplicationRecord
         file = File.open(pathname)
         speaker.photo.attach(io: file, filename: row[3])
       end
+      speaker.community = community
       speaker.save
     end
   end
 
-  def self.get_birthplace(name)
+  def self.get_birthplace(name, community)
     if name.nil? || name.downcase == 'unknown'
       return nil
     end
-    Place.find_or_create_by(name: name)
+    Place.find_or_create_by(name: name, community: community)
   end
 end
